@@ -31,6 +31,6 @@ Choose one auth method:
 ## 4) Smoke test from a clean environment
 
 ```bash
-pipx install docfs-sync
+pipx install docsync
 doc --help
 ```

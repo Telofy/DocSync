@@ -1,4 +1,4 @@
-# DocFS Sync
+# DocSync
 
 `doc` is a Python CLI that syncs one Google Doc's tabs to local Markdown files and back using incremental Google Docs API patches.
 
@@ -102,7 +102,7 @@ poetry run doc push <DOC_ID> --workspace . -f
 After publishing to PyPI, users can install globally with:
 
 ```bash
-pipx install docfs-sync
+pipx install docsync
 ```
 
 For maintainers, build and verify locally before upload:
