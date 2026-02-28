@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [project]
 name = "docsync"
-version = "0.1.0"
+version = "0.1.1"
 description = "Google Docs tabs to Markdown CLI sync tool"
 readme = "README.md"
 requires-python = ">=3.11,<4.0"
