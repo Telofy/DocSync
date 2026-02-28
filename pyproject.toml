@@ -1,0 +1,49 @@
+[build-system]
+requires = ["poetry-core>=1.9.0"]
+build-backend = "poetry.core.masonry.api"
+
+[project]
+name = "docfs-sync"
+version = "0.1.0"
+description = "Google Docs tabs to Markdown CLI sync tool"
+readme = "README.md"
+requires-python = ">=3.11,<4.0"
+dependencies = [
+  "google-api-python-client>=2.165.0",
+  "google-auth>=2.38.0",
+  "google-auth-oauthlib>=1.2.1",
+  "click>=8.1.8",
+  "python-dotenv>=1.0.1",
+]
+keywords = ["google-docs", "markdown", "sync", "cli"]
+classifiers = [
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Utilities",
+]
+
+[project.scripts]
+doc = "docfs.cli:main"
+
+[tool.poetry]
+packages = [{ include = "docfs", from = "src" }]
+exclude = [
+  ".env",
+  ".env.*",
+  "*.json",
+  ".docsync_state.json",
+  ".docsync_conflicts.json",
+  ".vscode/**",
+]
+
+[tool.poetry.group.dev.dependencies]
+basedpyright = ">=1.31.0"
+
+[tool.basedpyright]
+include = ["src"]
+typeCheckingMode = "basic"
+reportMissingTypeStubs = false
