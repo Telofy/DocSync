@@ -1,10 +1,10 @@
 # DocSync
 
-`doc` is a Python CLI that syncs one Google Doc's tabs to local Markdown files and back using incremental Google Docs API patches.
+`doc` is a Python CLI that syncs one Google Doc's tabs to local XML files and back using incremental Google Docs API patches.
 
 ## Current feature scope
 
-- `doc pull`: materialize tabs as Markdown files and store sync metadata in `.docsync_state.json`.
+- `doc pull`: materialize tabs as XML files and store sync metadata in `.docsync_state.json`.
 - `doc push`: strict mode, aborts if remote revision changed since last pull.
 - `doc push -f`: best-effort mode with a safe rebase policy; aborts on unsafe overlap.
 - `doc push -f --dry-run`: preview operations and conflicts without writing.
@@ -17,7 +17,7 @@
 
 ## Assumptions for v1
 
-- Tabs are textual and representable by the implemented Markdown subset.
+- Tabs are represented in editable XML (`.xml`) files.
 - Simultaneous edits are uncommon; strict mode is default.
 - Authentication uses Application Default Credentials (ADC).
 
@@ -80,21 +80,35 @@ Required scope used by this tool: `https://www.googleapis.com/auth/documents`.
 3. Pull:
 
    ```bash
-   poetry run doc pull <DOC_ID> --workspace .
+   poetry run doc pull <DOC_ID> --workspace . --verbose
    ```
 
-4. Edit generated `.md` files.
+   If you used an older Markdown-based workspace, run `pull` again to migrate files/state to XML.
+
+4. Edit generated `.xml` files.
 
 5. Push:
 
    ```bash
-   poetry run doc push <DOC_ID> --workspace .
+   poetry run doc push <DOC_ID> --workspace . --verbose
    ```
 
 Force mode:
 
 ```bash
 poetry run doc push <DOC_ID> --workspace . -f
+```
+
+For large documents, use incremental progress logs and tune batch size:
+
+```bash
+poetry run doc push <DOC_ID> --workspace . --verbose --batch-size 50
+```
+
+If you interrupt with Ctrl+C, DocSync now logs the current processing stage and stack context to `.docsync.log` by default. You can customize logging:
+
+```bash
+poetry run doc --log-file /tmp/docsync.log --log-level DEBUG push <DOC_ID> --verbose
 ```
 
 ## PyPI and pipx

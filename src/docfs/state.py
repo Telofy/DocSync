@@ -18,8 +18,8 @@ class TabState:
     tab_id: str
     title: str
     file_name: str
-    markdown_sha256: str
-    base_markdown: str
+    content_sha256: str
+    base_content: str
     base_remote_text: str
 
 
@@ -39,10 +39,16 @@ class WorkspaceState:
         if not p.exists():
             raise FileNotFoundError(f"Missing state file: {p}")
         raw = json.loads(p.read_text(encoding="utf-8"))
-        tabs = {
-            tab_id: TabState(**payload)
-            for tab_id, payload in raw.get("tabs", {}).items()
-        }
+        tabs: dict[str, TabState] = {}
+        for tab_id, payload in raw.get("tabs", {}).items():
+            tabs[tab_id] = TabState(
+                tab_id=payload["tab_id"],
+                title=payload["title"],
+                file_name=payload["file_name"],
+                content_sha256=payload.get("content_sha256", payload.get("markdown_sha256", "")),
+                base_content=payload.get("base_content", payload.get("base_markdown", "")),
+                base_remote_text=payload.get("base_remote_text", ""),
+            )
         return WorkspaceState(
             document_id=raw["document_id"],
             document_revision_id=raw.get("document_revision_id"),

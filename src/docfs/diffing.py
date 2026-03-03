@@ -31,17 +31,57 @@ class RebaseResult:
 
 
 def text_edits(source: str, target: str) -> list[TextEdit]:
-    sm = SequenceMatcher(None, source, target, autojunk=False)
+    if source == target:
+        return []
+
+    # Fast-path: trim unchanged prefix/suffix before running SequenceMatcher.
+    # This avoids quadratic behavior on very large texts with tiny edits.
+    source_len = len(source)
+    target_len = len(target)
+
+    prefix = 0
+    max_prefix = min(source_len, target_len)
+    while prefix < max_prefix and source[prefix] == target[prefix]:
+        prefix += 1
+
+    suffix = 0
+    max_suffix = min(source_len - prefix, target_len - prefix)
+    while suffix < max_suffix and source[source_len - 1 - suffix] == target[target_len - 1 - suffix]:
+        suffix += 1
+
+    source_mid_end = source_len - suffix
+    target_mid_end = target_len - suffix
+    source_mid = source[prefix:source_mid_end]
+    target_mid = target[prefix:target_mid_end]
+
+    if source_mid == target_mid:
+        return []
+
+    sm = SequenceMatcher(None, source_mid, target_mid, autojunk=False)
     edits: list[TextEdit] = []
     for tag, i1, i2, j1, j2 in sm.get_opcodes():
         if tag == "equal":
             continue
         if tag == "insert":
-            edits.append(TextEdit(tag="insert", start=i1, end=i1, text=target[j1:j2]))
+            edits.append(
+                TextEdit(
+                    tag="insert",
+                    start=prefix + i1,
+                    end=prefix + i1,
+                    text=target_mid[j1:j2],
+                )
+            )
         elif tag == "delete":
-            edits.append(TextEdit(tag="delete", start=i1, end=i2, text=""))
+            edits.append(TextEdit(tag="delete", start=prefix + i1, end=prefix + i2, text=""))
         elif tag == "replace":
-            edits.append(TextEdit(tag="replace", start=i1, end=i2, text=target[j1:j2]))
+            edits.append(
+                TextEdit(
+                    tag="replace",
+                    start=prefix + i1,
+                    end=prefix + i2,
+                    text=target_mid[j1:j2],
+                )
+            )
     return edits
 
 

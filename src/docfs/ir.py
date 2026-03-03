@@ -10,6 +10,7 @@ class BlockKind(str, Enum):
     LIST_ITEM = "list_item"
     BLOCKQUOTE = "blockquote"
     CODE = "code"
+    HORIZONTAL_RULE = "horizontal_rule"
 
 
 @dataclass(slots=True)

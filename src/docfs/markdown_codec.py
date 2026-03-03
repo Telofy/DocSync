@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 
 from .ir import Block, BlockKind, DocumentIR
 
@@ -87,7 +88,34 @@ def markdown_to_ir(markdown: str) -> DocumentIR:
 
 def ir_to_markdown(doc: DocumentIR) -> str:
     lines: list[str] = []
+    prev: Block | None = None
+
+    def is_hr(block: Block) -> bool:
+        return (
+            block.kind == BlockKind.HORIZONTAL_RULE
+            or (block.kind == BlockKind.PARAGRAPH and block.text.strip() == "---")
+        )
+
     for block in doc.blocks:
+        if prev is not None:
+            prev_list = prev.kind == BlockKind.LIST_ITEM
+            curr_list = block.kind == BlockKind.LIST_ITEM
+
+            need_blank = False
+            if is_hr(prev) or is_hr(block):
+                need_blank = True
+            elif prev.kind == BlockKind.HEADING or block.kind == BlockKind.HEADING:
+                need_blank = True
+            elif prev.kind == BlockKind.PARAGRAPH and block.kind == BlockKind.PARAGRAPH:
+                need_blank = True
+            elif prev.kind == BlockKind.CODE or block.kind == BlockKind.CODE:
+                need_blank = True
+            elif prev_list and not curr_list:
+                need_blank = True
+
+            if need_blank and lines and lines[-1] != "":
+                lines.append("")
+
         if block.kind == BlockKind.HEADING:
             lines.append(f"{'#' * max(1, min(block.level, 6))} {block.text}".rstrip())
         elif block.kind == BlockKind.LIST_ITEM:
@@ -95,12 +123,15 @@ def ir_to_markdown(doc: DocumentIR) -> str:
             lines.append(f"{'  ' * max(block.indent, 0)}{prefix}{block.text}".rstrip())
         elif block.kind == BlockKind.BLOCKQUOTE:
             lines.append(f"> {block.text}".rstrip())
+        elif block.kind == BlockKind.HORIZONTAL_RULE:
+            lines.append("---")
         elif block.kind == BlockKind.CODE:
             lines.append("```")
             lines.extend(block.text.split("\n") if block.text else [])
             lines.append("```")
         else:
             lines.append(block.text)
+        prev = block
     if not lines:
         return "\n"
     return "\n".join(lines).rstrip("\n") + "\n"
@@ -111,11 +142,49 @@ def ir_to_docs_projection(doc: DocumentIR) -> DocsProjection:
     Convert IR to plain text payload suitable for Docs text insertion/deletion operations.
     Formatting requests are intentionally out of v1 scope; this keeps diffing stable.
     """
+    def strip_inline_markdown(text: str) -> str:
+        out = text
+        # Convert common inline Markdown syntax to plain text for Docs text diffing.
+        out = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", out)
+        out = re.sub(r"\*\*([^*]+)\*\*", r"\1", out)
+        out = re.sub(r"__([^_]+)__", r"\1", out)
+        out = re.sub(r"\*([^*]+)\*", r"\1", out)
+        out = re.sub(r"_([^_]+)_", r"\1", out)
+        out = re.sub(r"`([^`]+)`", r"\1", out)
+        return out
+
     lines: list[str] = []
+    last_was_blank = False
+    prev_kind: BlockKind | None = None
     for block in doc.blocks:
+        # Horizontal rules are formatting-only in this plain-text projection
+        # and should not generate text diffs.
+        if block.kind == BlockKind.HORIZONTAL_RULE or (
+            block.kind == BlockKind.PARAGRAPH and block.text.strip() == "---"
+        ):
+            continue
+
         if block.kind == BlockKind.CODE:
-            lines.extend(block.text.split("\n") if block.text else [""])
+            code_lines = block.text.split("\n") if block.text else [""]
+            lines.extend(code_lines)
+            last_was_blank = bool(code_lines and code_lines[-1] == "")
         else:
-            lines.append(block.text)
+            text = strip_inline_markdown(block.text)
+            if text == "":
+                # Markdown commonly uses a blank separator after headings; this
+                # is syntactic in Markdown but not an explicit blank paragraph
+                # in Docs plain text.
+                if prev_kind == BlockKind.HEADING:
+                    continue
+                if not last_was_blank:
+                    lines.append("")
+                    last_was_blank = True
+            else:
+                lines.append(text)
+                last_was_blank = False
+        prev_kind = block.kind
+
+    if not lines:
+        return DocsProjection(text="\n")
     text = "\n".join(lines).rstrip("\n") + "\n"
     return DocsProjection(text=text)
